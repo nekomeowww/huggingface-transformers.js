@@ -48,7 +48,7 @@ async function generate({ audio, language }) {
     processing = true;
 
     // Tell the main thread we are starting
-    self.postMessage({ status: 'start' });
+    globalThis.postMessage({ status: 'start' });
 
     // Retrieve the text-generation pipeline.
     const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance();
@@ -62,7 +62,7 @@ async function generate({ audio, language }) {
         if (numTokens++ > 0) {
             tps = numTokens / (performance.now() - startTime) * 1000;
         }
-        self.postMessage({
+        globalThis.postMessage({
             status: 'update',
             output, tps, numTokens,
         });
@@ -86,7 +86,7 @@ async function generate({ audio, language }) {
     const outputText = tokenizer.batch_decode(outputs, { skip_special_tokens: true });
 
     // Send the output back to the main thread
-    self.postMessage({
+    globalThis.postMessage({
         status: 'complete',
         output: outputText,
     });
@@ -94,19 +94,20 @@ async function generate({ audio, language }) {
 }
 
 async function load() {
-    self.postMessage({
+    globalThis.postMessage({
         status: 'loading',
         data: 'Loading model...'
     });
 
     // Load the pipeline and save it for future use.
+    // eslint-disable-next-line no-unused-vars
     const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance(x => {
         // We also add a progress callback to the pipeline so that we can
         // track model loading.
-        self.postMessage(x);
+        globalThis.postMessage(x);
     });
 
-    self.postMessage({
+    globalThis.postMessage({
         status: 'loading',
         data: 'Compiling shaders and warming up model...'
     });
@@ -116,10 +117,11 @@ async function load() {
         input_features: full([1, 80, 3000], 0.0),
         max_new_tokens: 1,
     });
-    self.postMessage({ status: 'ready' });
+    globalThis.postMessage({ status: 'ready' });
 }
+
 // Listen for messages from the main thread
-self.addEventListener('message', async (e) => {
+globalThis.addEventListener('message', async (e) => {
     const { type, data } = e.data;
 
     switch (type) {
